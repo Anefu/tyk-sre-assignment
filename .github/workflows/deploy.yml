@@ -68,11 +68,9 @@ jobs:
       - id: 'get-credentials'
         uses: 'google-github-actions/get-gke-credentials@v1'
         with:
-          cluster_name: 'tyk'
-          location: 'us-central1-a'
+          cluster_name: tyk
+          location: us-central1
 
       - name: Deploy Chart
         run: |
-          mkdir -p ~/.kube
-          echo "${{ secrets.KUBECONFIG }}" >> ~/.kube/config
-          helm --kube-context gke_graphite-maker-306607_us-central1_tyk upgrade -i k8s-python ./k8s-python
+          helm upgrade -i k8s-python ./k8s-python
