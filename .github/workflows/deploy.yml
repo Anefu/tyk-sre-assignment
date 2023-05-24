@@ -55,8 +55,5 @@ jobs:
           path: k8s-python/
 
       - name: Deploy Chart
-        env:
-          KUBECONFIG_FILE: '${{ secrets.KUBECONFIG }}'
         run: |
-          kubectl config use gke_graphite-maker-306607_us-central1_tyk
-          helm upgrade -i k8s-python ./k8s-python
+          helm --kubeconfig ${{ secrets.KUBECONFIG }} --kube-context gke_graphite-maker-306607_us-central1_tyk upgrade -i k8s-python ./k8s-python
