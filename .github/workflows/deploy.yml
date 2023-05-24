@@ -21,13 +21,13 @@ jobs:
         run: |
           echo "TAG=$GITHUB_REF_NAME-${GITHUB_SHA::5}" >> $GITHUB_ENV
 
-      - name: Build Image
-        run: |
-          docker build -t "anefu/k8s-python:${{ env.TAG }}" .
+      # - name: Build Image
+      #   run: |
+      #     docker build -t "anefu/k8s-python:${{ env.TAG }}" .
 
-      - name: Push image
-        run:
-            docker push "anefu/k8s-python:${{ env.TAG }}"
+      # - name: Push image
+      #   run:
+      #       docker push "anefu/k8s-python:${{ env.TAG }}"
 
   Deploy:
     name: "Helm Deploy"
@@ -39,5 +39,6 @@ jobs:
 
       - name: Set New Image Tag
         run: |
+          echo ${{ env.TAG }}
           sed -i -e 's|{{TAG}}|${{ env.TAG }}|g' k8s-python/values.yaml
           cat k8s-python/values.yaml
