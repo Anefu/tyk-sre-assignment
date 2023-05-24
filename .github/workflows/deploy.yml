@@ -19,7 +19,7 @@ jobs:
 
       - name: Set Docker Tag
         run: |
-          echo "TAG=$GITHUB_REF_NAME-${{ github.sha }}"
+          echo "TAG=$GITHUB_REF_NAME-${GITHUB_SHA::5}" >> $GITHUB_ENV
 
       - name: Build Image
         run: |
