@@ -29,14 +29,6 @@ jobs:
       #   run:
       #       docker push "anefu/k8s-python:${{ env.TAG }}"
 
-  Deploy:
-    name: "Helm Deploy"
-    runs-on: ubuntu-latest
-    needs: Build
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v3
-
       - name: Set New Image Tag
         run: |
           echo ${{ env.TAG }}
