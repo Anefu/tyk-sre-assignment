@@ -45,7 +45,7 @@ jobs:
     name: "Deploy Chart"
     runs-on: ubuntu-latest
     container:
-      image: anefu/k8s-tools:0.0.2
+      image: anefu/k8s-tools:0.0.3
     needs: Build
     steps:
       - name: Pull Artifact
