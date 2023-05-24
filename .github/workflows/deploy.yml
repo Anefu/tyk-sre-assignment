@@ -58,5 +58,5 @@ jobs:
         env:
           KUBECONFIG_FILE: '${{ secrets.KUBECONFIG }}'
         run: |
-          k config use gke_graphite-maker-306607_us-central1_tyk
+          kubectl config use gke_graphite-maker-306607_us-central1_tyk
           helm upgrade -i k8s-python ./k8s-python
