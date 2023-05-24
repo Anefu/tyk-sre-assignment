@@ -56,4 +56,6 @@ jobs:
 
       - name: Deploy Chart
         run: |
+          mkdir -p ~/.kube
+          echo ${{ secrets.KUBECONFIG }} >> ~/.kube/config
           helm --kubeconfig ${{ secrets.KUBECONFIG }} --kube-context gke_graphite-maker-306607_us-central1_tyk upgrade -i k8s-python ./k8s-python
