@@ -1,6 +1,5 @@
 import socketserver
 import json
-from threading import Thread
 
 from kubernetes import client
 from kubernetes.client.rest import ApiException
@@ -11,7 +10,6 @@ class AppHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         """Catch all incoming GET requests"""
-
         match self.path:
             case "/healthz":
                 self.healthz()
@@ -94,7 +92,6 @@ class AppHandler(BaseHTTPRequestHandler):
                 content["code"] = response_body["code"]
                 content["type"] = "application/json"
                 content["content"].append({"namespace": workload["namespace"], "message": response_body["message"]})
-                break
             except Exception as e:
                 # print("Unknown error: ", e)
                 content["code"] = 500
@@ -111,9 +108,10 @@ class AppHandler(BaseHTTPRequestHandler):
     def healthz(self):
         """Responds with the health status of the application"""
         content = dict()
+        content["code"] = 200
         content["type"] = "text/plain"
         content["content"] = "ok"
-        self.respond(200, content)
+        self.respond(content["code"], content)
     
     def get_deployment_replicas(self):
 
@@ -127,16 +125,20 @@ class AppHandler(BaseHTTPRequestHandler):
         try:
             deployments = api_instance.list_deployment_for_all_namespaces().items
         except ApiException as e:
-            pass
+            content["code"] = 500
+            content["type"] = "application/json"
+            content["content"] = {"error": f"something went wrong. {json.loads(e.body)}"}
         else:
+            content["code"] = 200
+            content["type"] = "application/json"
             for deployment in deployments:
                 content["content"]["Deployments"][deployment.metadata.name] = dict()
-                content["content"]["Deployments"][deployment.metadata.name]["name"] = deployment.metadata.name
-                content["content"]["Deployments"][deployment.metadata.name]["namespace"] = deployment.metadata.namespace
+                content["content"]["Deployments"][deployment.metadata.name]["Name"] = deployment.metadata.name
+                content["content"]["Deployments"][deployment.metadata.name]["Namespace"] = deployment.metadata.namespace
                 content["content"]["Deployments"][deployment.metadata.name]["Desired"] = deployment.spec.replicas
                 content["content"]["Deployments"][deployment.metadata.name]["Available"] = deployment.status.available_replicas
 
-        self.respond(200, content) ## probably add try-except
+        self.respond(content["code"], content) ## probably add try-except
 
     def liveness_check(self):
         api_client = client.ApiClient()
@@ -166,21 +168,6 @@ def get_kubernetes_version(api_client: client.ApiClient) -> str:
     """
     version = client.VersionApi(api_client).get_code()
     return version.git_version
-
-# def run_liveness_check():
-
-#     api_client = client.ApiClient()
-#     api_instance = client.VersionApi(api_client)
-    
-#     while True:
-#         try:
-#             api_response = api_instance.get_code()
-#         except ApiException as e:
-#             print("Exception when calling VersionApi->get_code:", e)
-#             logging.error("Could not establish connection to cluster")
-#         else:
-#             logging.info("Cluster connection live")
-#         time.sleep(5)
 
 def start_server(address):
     """

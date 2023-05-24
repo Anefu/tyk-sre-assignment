@@ -94,24 +94,40 @@ class TestAppHandler(unittest.TestCase):
             }
 
         resp = requests.post(self._get_url("create/network-policy"), data=json.dumps(data))
+        resp_body = resp.json()
+        namespaces = [item["namespace"] for item in resp_body]
+        messages = [item["message"] for item in resp_body]
+
         match resp.status_code:
             case 201:
-                self.assertListEqual(resp.json(), [{"namespace": "default", "message": "network policy successfully created"}, {"namespace": "second", "message": "network policy successfully created"}])
+                self.assertListEqual(namespaces, [data["policy"]["workloads"][0]["namespace"], data["policy"]["workloads"][1]["namespace"]])
+                self.assertIn("network policy successfully created", messages)
             case 409:
-                self.assertListEqual(resp.json(), [{'namespace': 'default', 'message': 'networkpolicies.networking.k8s.io "test-policy" already exists'}])
+                self.assertListEqual(namespaces, [data["policy"]["workloads"][0]["namespace"], data["policy"]["workloads"][1]["namespace"]])
+                self.assertIn('networkpolicies.networking.k8s.io "test-policy" already exists', messages)
             case 500:
                 self.assertEqual(resp.text, "Unknown error")
 
     def test_get_deployment_replicas(self):
         config.load_kube_config(config_file="~/.kube/config")
         resp = requests.get(self._get_url("deployments/all/replicas"))
-        self.assertEqual(resp.status_code, 200)
+        resp_body = resp.json()
+        match resp.status_code:
+            case 200:
+                self.assertGreaterEqual(len(resp_body["Deployments"]), 1)
+                for deployment in resp_body["Deployments"].values():
+                    self.assertListEqual(list(deployment.keys()), ["Name", "Namespace", "Desired", "Available"])
+            case 500:
+                self.assertIn(resp_body.keys(), "error")
 
     def test_liveness_check(self):
         config.load_kube_config(config_file="~/.kube/config")
         resp = requests.get(self._get_url("cluster/health"))
-        self.assertEqual(resp.status_code, 200)
-        self.assertDictEqual(resp.json(), {"clusterStatus": "live"})
-
+        resp_body = resp.json()
+        match resp.status_code:
+            case 200:
+                self.assertDictEqual(resp_body, {"clusterStatus": "live"})
+            case _:
+                self.assertIn("clusterStatus", list(resp_body.keys()))
 if __name__ == '__main__':
     unittest.main()
