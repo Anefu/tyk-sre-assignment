@@ -32,6 +32,7 @@ jobs:
   Deploy:
     name: "Helm Deploy"
     runs-on: ubuntu-latest
+    needs: Build
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
@@ -40,14 +41,3 @@ jobs:
         run: |
           sed -i -e 's|{{TAG}}|${{ env.TAG }}|g' k8s-python/values.yaml
           cat k8s-python/values.yaml
-      
-      - name: Create commit and push
-        run: |
-          cd ./php-todo # change
-          git config user.email "test@gmail.com" # change
-          git config user.name "praise" # change
-          echo "Add changes, if any"
-          git add .
-          echo "Commit changes if any or exit"
-          git commit -m "test sync" || exit 0
-          git push origin main
