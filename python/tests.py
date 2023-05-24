@@ -1,15 +1,15 @@
 import unittest
 import socket
 import requests
+import json
 
 from unittest.mock import MagicMock
 from socketserver import TCPServer
 from threading import Thread
-from kubernetes import client
+from kubernetes import client, config
 from kubernetes.client.models import VersionInfo
 
 from app import app
-
 
 class TestGetKubernetesVersion(unittest.TestCase):
     def test_good_version(self):
@@ -64,12 +64,54 @@ class TestAppHandler(unittest.TestCase):
         """Returns a URL to pass into the requests so that they reach this suite's mock server"""
         host, port = self.mock_server.server_address
         return f"http://{host}:{port}/{target}"
-
+    
     def test_healthz_ok(self):
         resp = requests.get(self._get_url("healthz"))
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(resp.text, "ok")
+        self.assertEqual(json.loads(resp.text), "ok")
 
+    def test_create_network_policy(self):
+
+        config.load_kube_config(config_file="~/.kube/config")
+        data = {
+                "policy": {
+                    "name": "test-policy",
+                    "workloads": [
+                        {
+                            "namespace": "default",
+                            "labels": {
+                                "app": "nginx"
+                            }
+                        },
+                        {
+                            "namespace": "second",
+                            "labels": {
+                                "app": "nginx2"
+                            }
+                        }
+                    ]
+                }
+            }
+
+        resp = requests.post(self._get_url("create/network-policy"), data=json.dumps(data))
+        match resp.status_code:
+            case 201:
+                self.assertListEqual(resp.json(), [{"namespace": "default", "message": "network policy successfully created"}, {"namespace": "second", "message": "network policy successfully created"}])
+            case 409:
+                self.assertListEqual(resp.json(), [{'namespace': 'default', 'message': 'networkpolicies.networking.k8s.io "test-policy" already exists'}])
+            case 500:
+                self.assertEqual(resp.text, "Unknown error")
+
+    def test_get_deployment_replicas(self):
+        config.load_kube_config(config_file="~/.kube/config")
+        resp = requests.get(self._get_url("deployments/all/replicas"))
+        self.assertEqual(resp.status_code, 200)
+
+    def test_liveness_check(self):
+        config.load_kube_config(config_file="~/.kube/config")
+        resp = requests.get(self._get_url("cluster/health"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertDictEqual(resp.json(), {"clusterStatus": "live"})
 
 if __name__ == '__main__':
     unittest.main()

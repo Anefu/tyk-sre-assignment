@@ -1,0 +1,60 @@
+{"policy": {"name": "test-policy","workloads": [{"namespace": "default","labels": {"app": "nginx"}},{"namespace": "second","labels": {"app": "nginx2"}}]}}
+
+policy = {
+    "apiVersion": "networking.k8s.io/v1",
+    "kind": "NetworkPolicy",
+    "metadata": {
+        "name": body["policy"]["name"],
+        "namespace": body["policy"]["workloads"]["source_workload"]["namespace"]
+    },
+    "spec": {
+        "podSelector": {
+            "matchLabels": body["policy"]["workloads"]["source_workload"]["labels"]
+        },
+        "policyTypes": ["Ingress", "Egress"],
+        "egress": [
+            {
+                "to": [
+                    {
+                        "podSelector": {
+                            "matchLabels": body["policy"]["workloads"]["dest_workload"]["labels"]
+                        },
+                        "namespaceSelector": {
+                            "matchLabels": {
+                                "kubernetes.io/metadata.name": body["policy"]["workloads"]["dest_workload"]["namespace"]
+                            }
+                        }
+                    }
+                ],
+                "ports": [
+                    {
+                        "protocol": "TCP",
+                        "port": body["policy"]["port"]
+                    }
+                ]
+            }
+        ],
+        "ingress": [
+            {
+                "from": [
+                    {
+                        "podSelector": {
+                            "matchLabels": body["policy"]["workloads"]["dest_workload"]["labels"]
+                        },
+                        "namespaceSelector": {
+                            "matchLabels": {
+                                "kubernetes.io/metadata.name": body["policy"]["workloads"]["dest_workload"]["namespace"]
+                            }
+                        }
+                    }
+                ],
+                "ports": [
+                    {
+                        "protocol": "TCP",
+                        "port": body["policy"]["port"]
+                    }
+                ]
+            }
+        ]
+    }
+}

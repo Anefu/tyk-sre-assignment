@@ -1,0 +1,53 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches:
+      - main 
+      
+jobs:
+  Build:
+    name: "Build Docker Image"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Login to docker
+        run: |
+          docker login -u anefu --password ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set Docker Tag
+        run: |
+          echo "TAG=$GITHUB_REF_NAME-${{ github.sha }}"
+
+      - name: Build Image
+        run: |
+          docker build -t "anefu/k8s-python:${{ env.TAG }}" .
+
+      - name: Push image
+        run:
+            docker push "anefu/k8s-python:${{ env.TAG }}"
+
+  Deploy:
+    name: "Helm Deploy"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set New Image Tag
+        run: |
+          sed -i -e 's|{{TAG}}|${{ env.TAG }}|g' k8s-python/values.yaml
+          cat k8s-python/values.yaml
+      
+      - name: Create commit and push
+        run: |
+          cd ./php-todo # change
+          git config user.email "test@gmail.com" # change
+          git config user.name "praise" # change
+          echo "Add changes, if any"
+          git add .
+          echo "Commit changes if any or exit"
+          git commit -m "test sync" || exit 0
+          git push origin main
