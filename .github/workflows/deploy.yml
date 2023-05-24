@@ -21,16 +21,42 @@ jobs:
         run: |
           echo "TAG=$GITHUB_REF_NAME-${GITHUB_SHA::5}" >> $GITHUB_ENV
 
-      # - name: Build Image
-      #   run: |
-      #     docker build -t "anefu/k8s-python:${{ env.TAG }}" .
+      - name: Build Image
+        run: |
+          docker build -t "anefu/k8s-python:${{ env.TAG }}" .
 
-      # - name: Push image
-      #   run:
-      #       docker push "anefu/k8s-python:${{ env.TAG }}"
+      - name: Push image
+        run:
+            docker push "anefu/k8s-python:${{ env.TAG }}"
 
-      - name: Set New Image Tag
+      - name: Set New Image Tag in Chart
         run: |
           echo ${{ env.TAG }}
           sed -i -e 's|{{TAG}}|${{ env.TAG }}|g' k8s-python/values.yaml
           cat k8s-python/values.yaml
+
+      - name: Upload Helm Chart
+        uses: actions/upload-artifact@v3
+        with:
+          name: k8s-python
+          path: k8s-python/
+
+  Deploy:
+    name: "Deploy Chart"
+    runs-on: ubuntu-latest
+    container:
+      image: anefu/k8s-tools:0.0.2
+    needs: Build
+    steps:
+      - name: Pull Artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: k8s-python
+          path: k8s-python/
+
+      - name: Deploy Chart
+        env:
+          KUBECONFIG_FILE: '${{ secrets.KUBECONFIG }}'
+        run: |
+          k config use gke_graphite-maker-306607_us-central1_tyk
+          helm upgrade -i k8s-python ./k8s-python
