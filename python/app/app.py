@@ -37,11 +37,9 @@ class AppHandler(BaseHTTPRequestHandler):
         self.send_header('Content-Type', content["type"])
         self.end_headers()
 
-        self.wfile.write(bytes(json.dumps(content["content"]), "UTF-8"))
+        self.wfile.write(bytes(json.dumps(content["body"]), "UTF-8"))
 
     def create_network_policy(self, body):
-        content = dict()
-        content["content"] = list()
         """
         body:
             {
@@ -65,6 +63,13 @@ class AppHandler(BaseHTTPRequestHandler):
                 }
             }
         """
+        DEFAULT_POLICY_TYPES = ["Ingress", "Egress"]
+        content = {
+            "code": 0,
+            "type": "application/json",
+            "body": []
+        }
+
         api_client = client.ApiClient()
         api_instance = client.NetworkingV1Api(api_client)
 
@@ -80,7 +85,7 @@ class AppHandler(BaseHTTPRequestHandler):
                     "podSelector": {
                         "matchLabels": workload["labels"]
                     },
-                    "policyTypes": body.get("types", ["Ingress", "Egress"]),
+                    "policyTypes": body.get("types", DEFAULT_POLICY_TYPES),
                 }
             }
 
@@ -88,37 +93,34 @@ class AppHandler(BaseHTTPRequestHandler):
                 api_response = api_instance.create_namespaced_network_policy(workload["namespace"], policy)
             except ApiException as e:
                 response_body = json.loads(e.body)
-                # print("Exception when calling NetworkingV1Api->create_namespaced_network_policy: \n", e)
                 content["code"] = response_body["code"]
-                content["type"] = "application/json"
-                content["content"].append({"namespace": workload["namespace"], "message": response_body["message"]})
+                content["body"].append({"namespace": workload["namespace"], "message": response_body["message"]})
             except Exception as e:
-                # print("Unknown error: ", e)
                 content["code"] = 500
-                content["type"] = "text/plain"
-                content["content"].append({"namespace": workload["namespace"], "message": "unknown error"})
+                content["body"].append({"namespace": workload["namespace"], "message": "unknown error"})
             else:
-                # print(api_response)
                 content["code"] = 201
-                content["type"] = "application/json"
-                content["content"].append({"namespace": workload["namespace"], "message": "network policy successfully created"})
-        
+                content["body"].append({"namespace": workload["namespace"], "message": "network policy successfully created"})
+
         self.respond(content["code"], content)
 
     def healthz(self):
         """Responds with the health status of the application"""
-        content = dict()
-        content["code"] = 200
-        content["type"] = "text/plain"
-        content["content"] = "ok"
+        content = {
+            "code": 200,
+            "type": "text/plain",
+            "body": "ok"
+        }
         self.respond(content["code"], content)
-    
-    def get_deployment_replicas(self):
 
-        content = dict()
-        content["type"] = "application/json"
-        content["content"] = dict()
-        content["content"]["Deployments"] = dict()
+    def get_deployment_replicas(self):
+        content = {
+            "code": 0,
+            "type": "application/json",
+            "body": {
+                "Deployments": {}
+            }
+        }
         api_client = client.ApiClient()
         api_instance = client.AppsV1Api(api_client)
 
@@ -126,37 +128,37 @@ class AppHandler(BaseHTTPRequestHandler):
             deployments = api_instance.list_deployment_for_all_namespaces().items
         except ApiException as e:
             content["code"] = 500
-            content["type"] = "application/json"
-            content["content"] = {"error": f"something went wrong. {json.loads(e.body)}"}
+            content["body"] = {"error": f"something went wrong. {json.loads(e.body)}"}
         else:
             content["code"] = 200
-            content["type"] = "application/json"
             for deployment in deployments:
-                content["content"]["Deployments"][deployment.metadata.name] = dict()
-                content["content"]["Deployments"][deployment.metadata.name]["Name"] = deployment.metadata.name
-                content["content"]["Deployments"][deployment.metadata.name]["Namespace"] = deployment.metadata.namespace
-                content["content"]["Deployments"][deployment.metadata.name]["Desired"] = deployment.spec.replicas
-                content["content"]["Deployments"][deployment.metadata.name]["Available"] = deployment.status.available_replicas
+                deployment_info = {
+                    "Name": deployment.metadata.name,
+                    "Namespace": deployment.metadata.namespace,
+                    "Desired": deployment.spec.replicas,
+                    "Available": deployment.status.available_replicas
+                }
+                content["body"]["Deployments"][deployment.metadata.name] = deployment_info
 
-        self.respond(content["code"], content) ## probably add try-except
+        self.respond(content["code"], content)
 
     def liveness_check(self):
         api_client = client.ApiClient()
-        content = dict()
+        content = {
+            "code": 0,
+            "type": "application/json",
+            "body": {}
+        }
         try:
             api_response = client.VersionApi(api_client).get_code()
             client_version = api_response.git_version
         except ApiException as e:
             response_body = json.loads(e.body)
             content["code"] = response_body["code"]
-            content["type"] = "application/json"
-            content["content"] = {"clusterStatus": response_body["message"]}
-            # print("Cannot connect to K8s cluster, please check configuration. Message: ", e)
+            content["body"] = {"clusterStatus": response_body["message"]}
         else:
             content["code"] = 200
-            content["type"] = "application/json"
-            content["content"] = {"clusterStatus": "live"}
-            # print("cluster live")
+            content["body"] = {"clusterStatus": "live"}
 
         self.respond(content["code"], content)
 
@@ -180,9 +182,9 @@ def start_server(address):
     try:
         host, port = address.split(":")
     except ValueError:
-        print("invalid server address format")
+        print("Invalid server address format")
         return
 
     with socketserver.TCPServer((host, int(port)), AppHandler) as httpd:
-        print("Server listening on {}".format(address))
+        print(f"Server listening on {address}")
         httpd.serve_forever()
