@@ -138,7 +138,7 @@ class AppHandler(BaseHTTPRequestHandler):
                     "Desired": deployment.spec.replicas,
                     "Available": deployment.status.available_replicas or 0
                 }
-                content["body"]["Deployments"][f"{deployment.metadata.name}:{deployment.metadata.namespace}"] = deployment_info
+                content["body"]["Deployments"][f"{deployment.metadata.name}_{deployment.metadata.namespace}"] = deployment_info
 
         self.respond(content["code"], content)
 
